@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: badlands-bunkers-buddy
+metadata:
+  template: badlands-bunkers-buddy@1.0.0
+
+# Deliberately no `services:` section.
+#
+# azd's `host: staticwebapp` deploys only the static artifact — its service schema has
+# no property for a managed-functions API. Declaring a service here would make `azd up`
+# push the Blazor app while leaving the API behind, which looks like a success and
+# produces a site where every call 401s or 404s.
+#
+# So azd owns infrastructure only, and the GitHub Actions workflow
+# (.github/workflows/azure-static-web-apps.yml) deploys both halves together via Oryx,
+# which does understand managed functions.
+#
+#   azd up        provision Azure resources (safe to re-run)
+#   git push      build, test and deploy the app + API

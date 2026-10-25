@@ -1,0 +1,173 @@
+@page "/bunkers"
+@inject BunkerApi Api
+
+<PageTitle>Bunkers — Badlands Bunkers Buddy</PageTitle>
+
+<div class="page-head">
+    <h1>Bunkers</h1>
+    <span class="counter">@_bunkers.Count known</span>
+</div>
+
+<section class="card form-card">
+    <h2>@(_editingId is null ? "Add a bunker" : "Edit bunker")</h2>
+
+    <EditForm Model="_input" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+
+        <div class="coord-fields">
+            <label>
+                <span>X</span>
+                <InputNumber @bind-Value="_input.X" inputmode="numeric" placeholder="000" />
+            </label>
+            <span class="comma">,</span>
+            <label>
+                <span>Y</span>
+                <InputNumber @bind-Value="_input.Y" inputmode="numeric" placeholder="000" />
+            </label>
+        </div>
+
+        <label class="stacked">
+            <span>Where is it?</span>
+            <InputText @bind-Value="_input.Description" placeholder="e.g. hillside north of the quarry, behind the rocks" />
+        </label>
+
+        <ValidationSummary />
+
+        <div class="form-actions">
+            <button type="submit" class="primary" disabled="@_busy">
+                @(_editingId is null ? "Add bunker" : "Save changes")
+            </button>
+            @if (_editingId is not null)
+            {
+                <button type="button" class="ghost" @onclick="CancelEdit">Cancel</button>
+            }
+        </div>
+    </EditForm>
+</section>
+
+@if (_error is not null)
+{
+    <p class="error" role="alert">@_error</p>
+}
+
+<section class="list">
+    @if (_loading)
+    {
+        <p class="muted">Loading…</p>
+    }
+    else if (_bunkers.Count == 0)
+    {
+        <p class="empty">No bunkers yet. Add the first one above as soon as you decode a transmission.</p>
+    }
+    else
+    {
+        @foreach (var bunker in _bunkers)
+        {
+            <article class="bunker-card @(bunker.IsActive ? "active" : "")">
+                <div class="bunker-main">
+                    <div class="coords">@bunker.Coords</div>
+                    <div class="description">@bunker.Description</div>
+                    <div class="meta">
+                        @if (bunker.IsActive)
+                        {
+                            <span class="tag">Active tonight@(bunker.Code is null ? "" : $" · {bunker.Code}")</span>
+                        }
+                        <span>Seen active @bunker.ActiveCount night@(bunker.ActiveCount == 1 ? "" : "s")</span>
+                        @if (bunker.LastActiveUtc is { } last)
+                        {
+                            <span>Last @last.ToLocalTime().ToString("d MMM yyyy")</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="row-actions">
+                    <button class="ghost small" @onclick="() => StartEdit(bunker)">Edit</button>
+                    @if (_deletingId == bunker.Id)
+                    {
+                        <button class="danger small" @onclick="() => DeleteAsync(bunker)">Confirm</button>
+                        <button class="ghost small" @onclick="() => _deletingId = null">Cancel</button>
+                    }
+                    else
+                    {
+                        <button class="ghost small" @onclick="() => _deletingId = bunker.Id">Delete</button>
+                    }
+                </div>
+            </article>
+        }
+    }
+</section>
+
+@code {
+    private List<Bunker> _bunkers = new();
+    private BunkerInput _input = new();
+    private string? _editingId;
+    private string? _deletingId;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await RunAsync(async () => _bunkers = await Api.GetBunkersAsync());
+        _loading = false;
+    }
+
+    private void StartEdit(Bunker bunker)
+    {
+        _editingId = bunker.Id;
+        _deletingId = null;
+        _input = new BunkerInput { X = bunker.X, Y = bunker.Y, Description = bunker.Description };
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _input = new BunkerInput();
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        await RunAsync(async () =>
+        {
+            if (_editingId is null)
+                await Api.CreateBunkerAsync(_input);
+            else
+                await Api.UpdateBunkerAsync(_editingId, _input);
+
+            CancelEdit();
+            _bunkers = await Api.GetBunkersAsync();
+        });
+        _busy = false;
+    }
+
+    private async Task DeleteAsync(Bunker bunker)
+    {
+        _deletingId = null;
+        await RunAsync(async () =>
+        {
+            await Api.DeleteBunkerAsync(bunker.Id);
+            if (_editingId == bunker.Id) CancelEdit();
+            _bunkers = await Api.GetBunkersAsync();
+        });
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (SessionExpiredException)
+        {
+            // Handled by the layout.
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}

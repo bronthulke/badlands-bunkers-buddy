@@ -1,0 +1,56 @@
+@inject BunkerApi Api
+
+<div class="login">
+    <div class="login-card">
+        <div class="brand-mark big">///</div>
+        <h1>Badlands Bunkers Buddy</h1>
+        <p class="muted">Decoded coordinates and nightly lock codes. Group password required.</p>
+
+        <EditForm Model="this" OnValidSubmit="SubmitAsync">
+            <input type="password" @bind="_password" @bind:event="oninput"
+                   placeholder="Password" autocomplete="current-password" autofocus />
+            <button type="submit" class="primary" disabled="@(_busy || string.IsNullOrWhiteSpace(_password))">
+                @(_busy ? "Checking…" : "Enter")
+            </button>
+        </EditForm>
+
+        @if (_error is not null)
+        {
+            <p class="error" role="alert">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnAuthenticated { get; set; }
+
+    private string _password = "";
+    private string? _error;
+    private bool _busy;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            if (await Api.LoginAsync(_password))
+            {
+                _password = "";
+                await OnAuthenticated.InvokeAsync();
+                return;
+            }
+
+            _error = "Wrong password.";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

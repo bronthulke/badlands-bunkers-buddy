@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+local.settings.json
+node_modules/
+.azure/
+swa-cli.config.json.local
+.local-run/

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "staticWebAppLocation": {
+      "value": "${SWA_LOCATION=eastasia}"
+    },
+    "sharedPassword": {
+      "value": "${SHARED_PASSWORD}"
+    },
+    "authSigningKey": {
+      "value": "${AUTH_SIGNING_KEY}"
+    },
+    "sessionDays": {
+      "value": "${SESSION_DAYS=30}"
+    }
+  }
+}

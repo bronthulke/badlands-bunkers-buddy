@@ -1,0 +1,15 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "badlands-bunkers": {
+      "appLocation": "src/Client",
+      "apiLocation": "src/Api",
+      "outputLocation": "wwwroot",
+      "appBuildCommand": "dotnet publish -c Release -o bin/publish",
+      "apiLanguage": "dotnetisolated",
+      "apiVersion": "8.0",
+      "run": "dotnet watch run --project src/Client",
+      "appDevserverUrl": "http://localhost:5000"
+    }
+  }
+}

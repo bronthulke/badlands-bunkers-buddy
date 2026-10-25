@@ -1,0 +1,170 @@
+@page "/"
+@inject BunkerApi Api
+
+<PageTitle>Tonight — Badlands Bunkers Buddy</PageTitle>
+
+<div class="page-head">
+    <h1>Tonight</h1>
+    <div class="page-head-actions">
+        <span class="counter @(ActiveCount == 3 ? "counter-full" : "")">@ActiveCount / 3 active</span>
+        <button class="danger" @onclick="() => _confirmingClear = true" disabled="@(ActiveCount == 0)">
+            New night
+        </button>
+    </div>
+</div>
+
+@if (_confirmingClear)
+{
+    <div class="confirm" role="alertdialog">
+        <p>Clear tonight's @ActiveCount active bunker@(ActiveCount == 1 ? "" : "s") and their codes? They'll be saved to History first.</p>
+        <div class="confirm-actions">
+            <button class="danger" @onclick="ClearNightAsync">Yes, start a new night</button>
+            <button class="ghost" @onclick="() => _confirmingClear = false">Cancel</button>
+        </div>
+    </div>
+}
+
+@if (_error is not null)
+{
+    <p class="error" role="alert">@_error</p>
+}
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    <section class="active-list">
+        @if (ActiveCount == 0)
+        {
+            <p class="empty">
+                Nothing active yet. Mark a bunker below as you decode it from the radio.
+            </p>
+        }
+        else
+        {
+            @foreach (var bunker in _bunkers.Where(b => b.IsActive))
+            {
+                <article class="bunker-card active">
+                    <div class="bunker-main">
+                        <div class="coords">@bunker.Coords</div>
+                        <div class="description">@bunker.Description</div>
+                    </div>
+
+                    <div class="code-block">
+                        <label for="@($"code-{bunker.Id}")">Lock code</label>
+                        <input id="@($"code-{bunker.Id}")" class="code-input" inputmode="numeric"
+                               maxlength="8" placeholder="????" value="@bunker.Code"
+                               @onchange="e => SaveCodeAsync(bunker, e.Value?.ToString())" />
+                    </div>
+
+                    <button class="ghost small" @onclick="() => SetActiveAsync(bunker, false)">Remove</button>
+                </article>
+            }
+        }
+    </section>
+
+    <section class="pick">
+        <h2>Mark active</h2>
+
+        @if (_bunkers.Count == 0)
+        {
+            <p class="empty">No bunkers recorded yet. <a href="bunkers">Add the first one.</a></p>
+        }
+        else
+        {
+            <input class="search" placeholder="Filter by coords or description"
+                   @bind="_filter" @bind:event="oninput" />
+
+            <ul class="pick-list">
+                @foreach (var bunker in Filtered.Where(b => !b.IsActive))
+                {
+                    <li>
+                        <button class="pick-row" @onclick="() => SetActiveAsync(bunker, true)">
+                            <span class="coords small">@bunker.Coords</span>
+                            <span class="description">@bunker.Description</span>
+                            <span class="pick-cta">Activate</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    private List<Bunker> _bunkers = new();
+    private string _filter = "";
+    private bool _loading = true;
+    private bool _confirmingClear;
+    private string? _error;
+
+    private int ActiveCount => _bunkers.Count(b => b.IsActive);
+
+    private IEnumerable<Bunker> Filtered =>
+        string.IsNullOrWhiteSpace(_filter)
+            ? _bunkers
+            : _bunkers.Where(b =>
+                b.Coords.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                b.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await RunAsync(async () => _bunkers = await Api.GetBunkersAsync());
+        _loading = false;
+    }
+
+    private async Task SetActiveAsync(Bunker bunker, bool active)
+    {
+        if (active && ActiveCount >= 3)
+        {
+            _error = "Three bunkers are already active. Remove one first, or start a new night.";
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await Api.SetActiveAsync(bunker.Id, active);
+            _bunkers = await Api.GetBunkersAsync();
+        });
+    }
+
+    private async Task SaveCodeAsync(Bunker bunker, string? code)
+    {
+        await RunAsync(async () =>
+        {
+            var updated = await Api.SetCodeAsync(bunker.Id, code);
+            if (updated is not null) bunker.Code = updated.Code;
+        });
+    }
+
+    private async Task ClearNightAsync()
+    {
+        _confirmingClear = false;
+        await RunAsync(async () =>
+        {
+            await Api.ClearNightAsync();
+            _bunkers = await Api.GetBunkersAsync();
+        });
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (SessionExpiredException)
+        {
+            // The layout handles this — it'll swap us out for the login screen.
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+}

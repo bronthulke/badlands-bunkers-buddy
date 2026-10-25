@@ -1,0 +1,65 @@
+@page "/history"
+@inject BunkerApi Api
+
+<PageTitle>History — Badlands Bunkers Buddy</PageTitle>
+
+<div class="page-head">
+    <h1>History</h1>
+</div>
+
+@if (_error is not null)
+{
+    <p class="error" role="alert">@_error</p>
+}
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_nights.Count == 0)
+{
+    <p class="empty">No nights archived yet. Each time you start a new night, that night's bunkers land here.</p>
+}
+else
+{
+    @foreach (var night in _nights)
+    {
+        <section class="card night">
+            <h2>@night.ClearedUtc.ToLocalTime().ToString("dddd d MMM yyyy, HH:mm")</h2>
+            <ul class="night-entries">
+                @foreach (var entry in night.Entries)
+                {
+                    <li>
+                        <span class="coords small">@entry.Coords</span>
+                        <span class="description">@entry.Description</span>
+                        <span class="code-chip">@(entry.Code ?? "—")</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+@code {
+    private List<NightRecord> _nights = new();
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _nights = await Api.GetNightsAsync();
+        }
+        catch (SessionExpiredException)
+        {
+            // Handled by the layout.
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _loading = false;
+    }
+}

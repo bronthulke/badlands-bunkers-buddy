@@ -1,0 +1,65 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject BunkerApi Api
+
+@if (_checking)
+{
+    <div class="boot">Checking transmission…</div>
+}
+else if (!_authenticated)
+{
+    <Login OnAuthenticated="OnAuthenticated" />
+}
+else
+{
+    <div class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <span class="brand-mark">///</span>
+                <span class="brand-text">Badlands Bunkers Buddy</span>
+            </div>
+            <nav>
+                <NavLink href="" Match="NavLinkMatch.All">Tonight</NavLink>
+                <NavLink href="bunkers">Bunkers</NavLink>
+                <NavLink href="history">History</NavLink>
+            </nav>
+            <button class="link-button" @onclick="SignOut">Sign out</button>
+        </header>
+
+        <main>
+            @Body
+        </main>
+    </div>
+}
+
+@code {
+    private bool _checking = true;
+    private bool _authenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Api.SessionLost += OnSessionLost;
+        _authenticated = await Api.IsAuthenticatedAsync();
+        _checking = false;
+    }
+
+    private void OnAuthenticated()
+    {
+        _authenticated = true;
+        StateHasChanged();
+    }
+
+    private void OnSessionLost() => InvokeAsync(() =>
+    {
+        _authenticated = false;
+        StateHasChanged();
+    });
+
+    private async Task SignOut()
+    {
+        await Api.LogoutAsync();
+        _authenticated = false;
+    }
+
+    public void Dispose() => Api.SessionLost -= OnSessionLost;
+}

@@ -1,0 +1,25 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/api/*", "/css/*", "/_framework/*", "/*.{png,ico,svg,webmanifest}"]
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".dat": "application/octet-stream",
+    ".blat": "application/octet-stream",
+    ".dll": "application/octet-stream",
+    ".wasm": "application/wasm",
+    ".pdb": "application/octet-stream",
+    ".webmanifest": "application/manifest+json"
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer"
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html"
+    }
+  }
+}
